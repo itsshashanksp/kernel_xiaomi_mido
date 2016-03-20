@@ -965,6 +965,9 @@ config MSM_BAM_DMUX
 
 source "drivers/soc/qcom/wcnss/Kconfig"
 
+config STATE_NOTIFIER
+    bool "State Notifier"
+
 config BIG_CLUSTER_MIN_FREQ_ADJUST
 	bool "Adjust BIG cluster min frequency based on power collapse state"
 	default n
