@@ -1,7 +1,8 @@
 /*
  * State Notifier Driver
  *
- * Copyright (c) 2013-2018, Pranav Vashi <neobuddy89@gmail.com>
+ * Copyright (c) 2013-2017, Pranav Vashi <neobuddy89@gmail.com>
+ *           (c) 2017, Joe Maples <joe@frap129.org>
  *           (c) 2018, Yaroslav Furman <yaro330@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +22,6 @@
  * debug = 1 will print all
  */
 static unsigned int debug;
-module_param_named(debug_mask, debug, uint, 0644);
 
 #define dprintk(msg...)		\
 do {				\
@@ -29,8 +29,6 @@ do {				\
 		pr_info(msg);	\
 } while (0)
 
-static bool enabled = true;
-module_param_named(enabled, enabled, bool, 0664);
 static unsigned int suspend_defer_time = DEFAULT_SUSPEND_DEFER_TIME;
 module_param_named(suspend_defer_time, suspend_defer_time, uint, 0664);
 static struct delayed_work suspend_work;
@@ -99,7 +97,7 @@ static void _boost_work(struct work_struct *work)
 void state_suspend(void)
 {
 	dprintk("%s: suspend called.\n", STATE_NOTIFIER);
-	if (state_suspended || suspend_in_progress || !enabled)
+	if (state_suspended || suspend_in_progress)
 		return;
 
 	suspend_in_progress = true;
