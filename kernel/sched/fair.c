@@ -7004,7 +7004,6 @@ struct find_best_target_env {
 static unsigned long cpu_estimated_capacity(int cpu, struct task_struct *p)
 {
 	unsigned long tutil, estimated_capacity;
-	unsigned long task_boost = per_task_boost(p);
 
 	if (task_in_cum_window_demand(cpu_rq(cpu), p))
 		tutil = 0;
