@@ -249,6 +249,9 @@ struct schedtune {
 	/* Array of tracked boost values of each slot */
 	int slot_boost[DYNAMIC_BOOST_SLOTS_COUNT];
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
+	
+	/* Hint to use iowait boost */
+	bool prefer_iowait;
 };
 
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
@@ -275,8 +278,7 @@ static inline struct schedtune *parent_st(struct schedtune *st)
  * By default, system-wide boosting is disabled, i.e. no boosting is applied
  * to tasks which are not into a child control group.
  */
-static struct schedtune
-root_schedtune = {
+static struct schedtune root_schedtune = {
 	.boost	= 0,
 #ifdef CONFIG_SCHED_WALT
 	.sched_boost_no_override = false,
@@ -302,6 +304,7 @@ root_schedtune = {
 	},
 	.slot_boost = {0},
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
+	.prefer_iowait = 0,
 };
 
 int
@@ -980,6 +983,40 @@ boost_slots_release(struct schedtune *st)
 }
 #endif // CONFIG_DYNAMIC_STUNE_BOOST
 
+int schedtune_prefer_iowait(struct task_struct *p)
+{
+	struct schedtune *st;
+	int prefer_iowait;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get prefer_iowait value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	prefer_iowait = st->prefer_iowait;
+	rcu_read_unlock();
+
+	return prefer_iowait;
+}
+
+static u64 prefer_iowait_read(struct cgroup_subsys_state *css,
+			struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->prefer_iowait;
+}
+
+static int prefer_iowait_write(struct cgroup_subsys_state *css,
+			struct cftype *cft, u64 prefer_iowait)
+{
+	struct schedtune *st = css_st(css);
+
+	st->prefer_iowait = !!prefer_iowait;
+	return 0;
+}
+
 static struct cftype files[] = {
 #ifdef CONFIG_SCHED_WALT
 	{
@@ -1015,6 +1052,11 @@ static struct cftype files[] = {
 		.write_s64 = sched_boost_write,
 	},
 #endif // CONFIG_DYNAMIC_STUNE_BOOST
+	{
+		.name = "prefer_iowait",
+		.read_u64 = prefer_iowait_read,
+		.write_u64 = prefer_iowait_write,
+	},
 	{ }	/* terminate */
 };
 
