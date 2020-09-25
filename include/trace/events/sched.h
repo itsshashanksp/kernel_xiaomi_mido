@@ -1824,12 +1824,9 @@ TRACE_EVENT(sched_get_nr_running_avg,
 		__entry->big_max_nr	= big_max_nr;
 	),
 
-	TP_printk("avg=%d big_avg=%d iowait_avg=%d max_nr=%u big_max_nr=%u"
-		" wc %llu ws %llu delta %llu event %d cpu %d cur_pid %d task %d (%s) ms %llu delta %llu demand %u sum %u irqtime %llu"
-		" cs %llu ps %llu util %llu cur_window %u prev_window %u active_wins %u",
-		__entry->avg, __entry->big_avg, __entry->iowait_avg,
-		__entry->max_nr, __entry->big_max_nr,
-		__entry->wallclock, __entry->win_start, __entry->delta,
+	TP_printk("wc %llu ws %llu delta %llu event %d cpu %d cur_pid %d task %d (%s) ms %llu delta %llu demand %u sum %u irqtime %llu"
+		" cs %llu ps %llu util %llu cur_window %u prev_window %u active_wins %u"
+		, __entry->wallclock, __entry->win_start, __entry->delta,
 		__entry->evt, __entry->cpu, __entry->cur_pid,
 		__entry->pid, __entry->comm, __entry->mark_start,
 		__entry->delta_m, __entry->demand,
