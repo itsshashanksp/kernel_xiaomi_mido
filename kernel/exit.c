@@ -61,6 +61,7 @@
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include <linux/boost_sigkill_free.h>
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
@@ -942,6 +943,9 @@ do_group_exit(int exit_code)
 		}
 		spin_unlock_irq(&sighand->siglock);
 	}
+
+	if (sig_kernel_kill(exit_code))
+	fast_free_user_mem();
 
 	do_exit(exit_code);
 	/* NOTREACHED */

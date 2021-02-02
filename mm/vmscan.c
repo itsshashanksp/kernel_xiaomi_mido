@@ -150,7 +150,7 @@ struct scan_control {
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness = 80;
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
@@ -2217,6 +2217,10 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	unsigned long ap, fp;
 	enum lru_list lru;
 
+	if (!current_is_kswapd()) {
+	swappiness = 60;
+	}
+
 	/* If we have no swap space, do not bother scanning anon pages. */
 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
 		scan_balance = SCAN_FILE;
@@ -2412,6 +2416,32 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 
 	/* Record the original scan target for proportional adjustments later */
 	memcpy(targets, nr, sizeof(nr));
+
+    /*
+     * sc->priority: 12, 11, 10,  9
+     * (4)    shift:  4,  3,  2,  1
+     *           nr:  2,  4,  8, 16
+     * (5)    shift:  5,  4,  3,  2
+     *           nr:  1,  2,  4,  8
+     * (3)    shift:  3,  2,  1,  0
+     *           nr:  4,  8, 16, 32
+     */
+    /* Only kswapd is allowed to reclaim more anon & file cache pages */
+    if (current_is_kswapd() && sc->priority > 8) {
+        unsigned long adjust_nr = 1;
+        int shift = 4 - DEF_PRIORITY + sc->priority;
+        if (shift >= 0)
+            adjust_nr = SWAP_CLUSTER_MAX >> shift;
+
+        if (nr[LRU_INACTIVE_ANON] < adjust_nr)
+            nr[LRU_INACTIVE_ANON] = adjust_nr;
+        if (nr[LRU_ACTIVE_ANON] < adjust_nr)
+            nr[LRU_ACTIVE_ANON] = adjust_nr;
+        if (nr[LRU_INACTIVE_FILE] < adjust_nr)
+            nr[LRU_INACTIVE_FILE] = adjust_nr;
+        if (nr[LRU_ACTIVE_FILE] < adjust_nr)
+            nr[LRU_ACTIVE_FILE] = adjust_nr;
+    }
 
 	/*
 	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
