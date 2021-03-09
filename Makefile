@@ -730,7 +730,7 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
 ifeq ($(cc-name),clang)
-KBUILD_CFLAGS   += -O3
+KBUILD_CFLAGS   += -O3 -finline-hint-functions
 else
 KBUILD_CFLAGS   += -O2
 endif
@@ -743,6 +743,26 @@ endif
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
+
+# Restore pre-gcc-10's params
+KBUILD_CFLAGS	+= $(call gcc-ifversion, -ge, 1000, --param=inline-min-speedup=15)
+KBUILD_CFLAGS	+= $(call gcc-ifversion, -ge, 1000, --param=max-inline-insns-single=200)
+KBUILD_CFLAGS	+= $(call gcc-ifversion, -ge, 1000, --param=max-inline-insns-auto=30)
+KBUILD_CFLAGS	+= $(call gcc-ifversion, -ge, 1000, --param=early-inlining-insns=14)
+
+# clang variable sanitization
+ifeq ($(call clang-ifversion, -ge, 0800, y),y)
+# Future support for zero initialization is still being debated, see
+# https://bugs.llvm.org/show_bug.cgi?id=45497. These flags are subject to being
+# renamed or dropped.
+KBUILD_CFLAGS	+= -ftrivial-auto-var-init=zero
+KBUILD_CFLAGS	+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+else ifeq ($(call clang-ifversion, -lt, 0800, y),y)
+# This requires an external patch to clang from HardenedOS, which has been
+# superseded by -ftrivial-auto-var-init=zero above for clang 8+ and any
+# -fsanitize= options may require build to be LTO as well
+KBUILD_CFLAGS	+= $(call cc-option, -fsanitize=local-init)
+endif
 
 # check for 'asm goto'
 ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC) $(KBUILD_CFLAGS)), y)
@@ -808,6 +828,11 @@ KBUILD_CFLAGS += $(call cc-disable-warning, tautological-compare)
 # See modpost pattern 2
 KBUILD_CFLAGS += $(call cc-option, -mno-global-merge,)
 KBUILD_CFLAGS += $(call cc-option, -fcatch-undefined-behavior)
+
+# Future support for zero initialization is still being debated, see
+# https://bugs.llvm.org/show_bug.cgi?id=45497. These flags are subject to being
+# renamed or dropped.
+KBUILD_CFLAGS   += -ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 else
 
 # These warnings generated too much noise in a regular build.

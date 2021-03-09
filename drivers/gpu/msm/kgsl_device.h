@@ -65,7 +65,6 @@ enum kgsl_event_results {
 	KGSL_EVENT_CANCELLED = 2,
 };
 
-#define KGSL_FLAG_WAKE_ON_TOUCH BIT(0)
 #define KGSL_FLAG_SPARSE        BIT(1)
 
 /*
@@ -567,6 +566,12 @@ static inline void kgsl_process_add_stats(struct kgsl_process_private *priv,
 	priv->stats[type].cur += size;
 	if (priv->stats[type].max < priv->stats[type].cur)
 		priv->stats[type].max = priv->stats[type].cur;
+}
+
+static inline void kgsl_process_sub_stats(struct kgsl_process_private *priv,
+	unsigned int type, uint64_t size)
+{
+	priv->stats[type].cur -= size;
 }
 
 static inline bool kgsl_is_register_offset(struct kgsl_device *device,

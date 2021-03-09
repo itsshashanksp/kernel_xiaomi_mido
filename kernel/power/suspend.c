@@ -49,7 +49,7 @@ const char * const mem_sleep_labels[] = {
 const char *mem_sleep_states[PM_SUSPEND_MAX];
 
 suspend_state_t mem_sleep_current = PM_SUSPEND_FREEZE;
-static suspend_state_t mem_sleep_default = PM_SUSPEND_FREEZE;
+static suspend_state_t mem_sleep_default = PM_SUSPEND_MEM;
 
 unsigned int pm_suspend_global_flags;
 EXPORT_SYMBOL_GPL(pm_suspend_global_flags);
@@ -348,7 +348,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (error) {
 		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 		last_dev %= REC_FAILED_NUM;
-		pr_err("PM: late suspend of devices failed\n");
+		pr_debug("PM: late suspend of devices failed\n");
 		log_suspend_abort_reason("%s device failed to power down",
 			suspend_stats.failed_devs[last_dev]);
 		goto Platform_finish;
@@ -361,7 +361,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (error) {
 		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 		last_dev %= REC_FAILED_NUM;
-		pr_err("PM: noirq suspend of devices failed\n");
+		pr_debug("PM: noirq suspend of devices failed\n");
 		log_suspend_abort_reason("noirq suspend of %s device failed",
 			suspend_stats.failed_devs[last_dev]);
 		goto Platform_early_resume;
@@ -441,7 +441,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
  */
 int suspend_devices_and_enter(suspend_state_t state)
 {
-	int error;
+	int error, last_dev;
 	bool wakeup = false;
 
 	if (!sleep_state_supported(state))
@@ -455,8 +455,11 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
-		pr_err("PM: Some devices failed to suspend, or early wake event detected\n");
-		log_suspend_abort_reason("Some devices failed to suspend, or early wake event detected");
+		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
+		last_dev %= REC_FAILED_NUM;
+		pr_debug("PM: Some devices failed to suspend, or early wake event detected\n");
+		log_suspend_abort_reason("%s device failed to suspend, or early wake event detected",
+			suspend_stats.failed_devs[last_dev]);
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -512,7 +515,9 @@ static DECLARE_WORK(sys_sync_work, sys_sync_work_func);
 static DECLARE_WAIT_QUEUE_HEAD(sys_sync_wait);
 static void sys_sync_work_func(struct work_struct *work)
 {
+#ifdef CONFIG_SUSPEND_LOG_DEBUG
 	pr_info("PM: Syncing filesystems ... \n");
+#endif
 	sys_sync();
 	sys_sync_completed = true;
 	wake_up(&sys_sync_wait);
@@ -546,7 +551,9 @@ static int sys_sync_queue(void)
 		}
 	}
 
+#ifdef CONFIG_SUSPEND_LOG_DEBUG
 	pr_info("PM: Syncing done\n");
+#endif
 	return 0;
 abort:
 	return -EAGAIN;

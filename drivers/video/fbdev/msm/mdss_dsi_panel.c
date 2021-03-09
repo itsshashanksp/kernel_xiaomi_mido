@@ -219,7 +219,7 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(led_pwm1)},
 	led_pwm1
 };
 
@@ -588,8 +588,8 @@ static char paset[] = {0x2b, 0x00, 0x00, 0x05, 0x00};	/* DTYPE_DCS_LWRITE */
 /* pack into one frame before sent */
 static struct dsi_cmd_desc set_col_page_addr_cmd[] = {
 	{{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(pageset)}, pageset},
-	{{DTYPE_DCS_LWRITE, 0, 0, 0, 1, sizeof(caset)}, caset},	/* packed */
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(paset)}, paset},
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0, sizeof(caset)}, caset},	/* packed */
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(paset)}, paset},
 };
 
 static void mdss_dsi_send_col_page_addr(struct mdss_dsi_ctrl_pdata *ctrl,

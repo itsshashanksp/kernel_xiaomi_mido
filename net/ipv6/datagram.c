@@ -241,13 +241,14 @@ ipv4_connected:
 		}
 	}
 
-	/* save the current peer information before updating it */
+        /* save the current peer information before updating it */
 	old_daddr = sk->sk_v6_daddr;
 	old_fl6_flowlabel = np->flow_label;
 	old_dport = inet->inet_dport;
 
 	sk->sk_v6_daddr = *daddr;
 	np->flow_label = fl6_flowlabel;
+
 	inet->inet_dport = usin->sin6_port;
 
 	/*

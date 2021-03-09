@@ -42,6 +42,13 @@ config POWERSUSPEND_DEBUG
 	help
 	  Output debugging info in dmesg [POWERSUSPEND] (Yank555.lu)
 
+config SUSPEND_LOG_DEBUG
+	bool "Power debug log suspend"
+        depends on !SUSPEND_SKIP_SYNC
+        default n
+        help
+          This disables several power debug while suspend skip sync is disable.
+
 config HIBERNATE_CALLBACKS
 	bool
 
