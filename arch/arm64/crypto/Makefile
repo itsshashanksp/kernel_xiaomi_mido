@@ -19,9 +19,8 @@ ghash-ce-y := ghash-ce-glue.o ghash-ce-core.o
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_CE) += aes-ce-cipher.o
 aes-ce-cipher-y := aes-ce-cipher-glue.o aes-ce-cipher-core.o
-ifdef CONFIG_MACH_XIAOMI_MSM8953
-CFLAGS_aes-ce-cipher-core.o += -mcpu=cortex-a53+crypto -Wa,-mcpu=cortex-a53+crypto -mtune=cortex-a53
-else
+
+ifeq ($(filter -mcpu=%, $(MACH_CFLAGS)),)
 CFLAGS_aes-ce-cipher-core.o += -march=armv8-a+crypto -Wa,-march=armv8-a+crypto
 endif
 CFLAGS_aes-ce-cipher-core.o += $(DISABLE_LTO)
@@ -40,11 +39,21 @@ AFLAGS_aes-neon.o	:= -DINTERLEAVE=4
 
 CFLAGS_aes-glue-ce.o	:= -DUSE_V8_CRYPTO_EXTENSIONS
 
+ifeq ($(cc-name),gcc)
+ifneq ($(filter -mcpu=%, $(MACH_CFLAGS)),)
+# Includes crypto extension by default for Clang
+ccflags-y += $(filter -mcpu=%, $(MACH_CFLAGS))+crypto
+endif
+endif
+
+ifneq ($(filter -Wa$(comma)-mcpu=%, $(MACH_AFLAGS)),)
+ccflags-y += $(filter -Wa$(comma)-mcpu=%, $(MACH_AFLAGS))+crypto
+asflags-y += $(filter -Wa$(comma)-mcpu=%, $(MACH_AFLAGS))+crypto
+endif
+
 obj-$(CONFIG_CRYPTO_CRC32_ARM64) += crc32-arm64.o
 
-ifdef CONFIG_MACH_XIAOMI_MSM8953
-CFLAGS_crc32-arm64.o	:= -mcpu=cortex-a53+crc -Wa,-mcpu=cortex-a53+crc -mtune=cortex-a53
-else
+ifeq ($(filter -mcpu=%, $(MACH_CFLAGS)),)
 CFLAGS_crc32-arm64.o	:= -mcpu=generic+crc
 endif
 
