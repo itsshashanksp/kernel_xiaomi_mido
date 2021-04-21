@@ -500,6 +500,10 @@ module_param_named(
 	int, 00600
 );
 
+static int rerun_apsd(struct smbchg_chip *chip);
+static void usb_type_check_work_fn(struct smbchg_chip *chip);
+int rerun_usb_insertion = 0;
+
 #define pr_smb(reason, fmt, ...)				\
 	do {							\
 		if (smbchg_debug_mask & (reason))		\
@@ -3817,6 +3821,14 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 {
 	struct smbchg_chip *chip = power_supply_get_drvdata(psy);
 	int rc, soc;
+	enum power_supply_type usb_supply_type;
+	char *usb_type_name = "null";
+
+	read_usb_type(chip, &usb_type_name, &usb_supply_type);
+	if ((usb_supply_type == POWER_SUPPLY_TYPE_USB) && (chip->usb_present) && (rerun_usb_insertion < 1)) {
+		msleep(1000);
+		usb_type_check_work_fn(chip);
+	}
 
 	smbchg_aicl_deglitch_wa_check(chip);
 
@@ -4826,6 +4838,7 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 	extcon_set_cable_state_(chip->extcon, EXTCON_USB, chip->usb_present);
 	smbchg_request_dpdm(chip, false);
 	schedule_work(&chip->usb_set_online_work);
+	rerun_usb_insertion = 0;
 
 	pr_smb(PR_MISC, "setting usb psy health UNKNOWN\n");
 	chip->usb_health = POWER_SUPPLY_HEALTH_UNKNOWN;
@@ -5511,6 +5524,8 @@ static int rerun_apsd(struct smbchg_chip *chip)
 		reinit_completion(&chip->usbin_uv_lowered);
 		reinit_completion(&chip->src_det_lowered);
 		reinit_completion(&chip->usbin_uv_raised);
+		if (rerun_usb_insertion < 2)
+			rerun_usb_insertion++;
 
 		/* re-run APSD */
 		rc = smbchg_masked_write(chip,
@@ -8411,6 +8426,13 @@ static void rerun_hvdcp_det_if_necessary(struct smbchg_chip *chip)
 					msecs_to_jiffies(HVDCP_NOTIFY_MS));
 		}
 	}
+}
+
+static void usb_type_check_work_fn(struct smbchg_chip *chip)
+{
+	chip->hvdcp_3_det_ignore_uv = true;
+	rerun_apsd(chip);
+	chip->hvdcp_3_det_ignore_uv = false;
 }
 
 static int smbchg_probe(struct platform_device *pdev)
