@@ -250,8 +250,8 @@ struct exfat_sb_info {
 	struct nls_table *nls_io; /* Charset used for input and display */
 	struct ratelimit_state ratelimit;
 
-	spinlock_t inode_hash_lock;
-	struct hlist_head inode_hashtable[EXFAT_HASH_SIZE];
+	spinlock_t inode_tree_lock; /* lock for inode_tree structure */
+	struct rb_root inode_tree;
 
 	struct rcu_head rcu;
 };
@@ -296,8 +296,8 @@ struct exfat_inode_info {
 	loff_t i_size_aligned;
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
-	/* hash by i_location */
-	struct hlist_node i_hash_fat;
+	/* tree by i_location */
+	struct rb_node rbnode;
 	/* protect bmap against truncate */
 	struct rw_semaphore truncate_lock;
 	struct inode vfs_inode;
@@ -396,7 +396,7 @@ int exfat_clear_volume_dirty(struct super_block *sb);
 #define exfat_get_next_cluster(sb, pclu) exfat_ent_get(sb, *(pclu), pclu)
 
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
-		struct exfat_chain *p_chain);
+		struct exfat_chain *p_chain, bool sync_bmap);
 int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain);
 int exfat_ent_get(struct super_block *sb, unsigned int loc,
 		unsigned int *content);
@@ -415,7 +415,7 @@ int exfat_count_num_clusters(struct super_block *sb,
 /* balloc.c */
 int exfat_load_bitmap(struct super_block *sb);
 void exfat_free_bitmap(struct exfat_sb_info *sbi);
-int exfat_set_bitmap(struct inode *inode, unsigned int clu);
+int exfat_set_bitmap(struct inode *inode, unsigned int clu, bool sync);
 void exfat_clear_bitmap(struct inode *inode, unsigned int clu, bool sync);
 unsigned int exfat_find_free_bitmap(struct super_block *sb, unsigned int clu);
 int exfat_count_used_clusters(struct super_block *sb, unsigned int *ret_count);
@@ -485,8 +485,8 @@ extern const struct inode_operations exfat_file_inode_operations;
 void exfat_sync_inode(struct inode *inode);
 struct inode *exfat_build_inode(struct super_block *sb,
 		struct exfat_dir_entry *info, loff_t i_pos);
-void exfat_hash_inode(struct inode *inode, loff_t i_pos);
-void exfat_unhash_inode(struct inode *inode);
+void exfat_inode_tree_insert(struct inode *inode, loff_t i_pos);
+void exfat_inode_tree_erase(struct inode *inode);
 struct inode *exfat_iget(struct super_block *sb, loff_t i_pos);
 int exfat_write_inode(struct inode *inode, struct writeback_control *wbc);
 void exfat_evict_inode(struct inode *inode);

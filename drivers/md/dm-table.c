@@ -1538,7 +1538,7 @@ static int queue_no_sg_merge(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags);
+        return q && test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags);
 }
 
 static int queue_no_inline_encryption(struct dm_target *ti,
@@ -1643,15 +1643,14 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	/* Ensure that all underlying devices are non-rotational. */
 	if (dm_table_any_dev_attr(t, device_is_rotational))
 		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
-	else
+        else
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
-
 	if (!dm_table_supports_write_same(t))
 		q->limits.max_write_same_sectors = 0;
 
 	if (dm_table_any_dev_attr(t, queue_no_sg_merge))
 		queue_flag_set_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
-	else
+        else
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
 
 	if (dm_table_any_dev_attr(t, queue_no_inline_encryption))
