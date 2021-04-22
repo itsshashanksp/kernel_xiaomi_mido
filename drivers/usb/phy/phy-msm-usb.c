@@ -3045,6 +3045,7 @@ static void msm_otg_set_vbus_state(int online)
 	 */
 	if (test_bit(B_SESS_VLD, &motg->inputs) && !motg->chg_detection) {
 		if ((get_psy_type(motg) == POWER_SUPPLY_TYPE_UNKNOWN) ||
+		    (get_psy_type(motg) == POWER_SUPPLY_TYPE_USB) ||
 		    (get_psy_type(motg) == POWER_SUPPLY_TYPE_USB_FLOAT &&
 		     chg_detection_for_float_charger))
 			motg->chg_detection = true;
