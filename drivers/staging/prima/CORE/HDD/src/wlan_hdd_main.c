@@ -4039,7 +4039,6 @@ int hdd_process_bt_sco_profile(hdd_context_t *hdd_ctx,
 static void hdd_init_sw_pta(hdd_context_t *hdd_ctx)
 {
 	init_completion(&hdd_ctx->sw_pta_comp);
-	wcnss_update_bt_profile();
 }
 
 static void hdd_deinit_sw_pta(hdd_context_t *hdd_ctx)
@@ -10119,14 +10118,6 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
 
          hdd_initialize_adapter_common(pAdapter);
 
-         status = hdd_sta_id_hash_attach(pAdapter);
-         if (VOS_STATUS_SUCCESS != status)
-         {
-             hddLog(VOS_TRACE_LEVEL_FATAL,
-                    FL("failed to attach hash for session %d"), session_type);
-             goto err_free_netdev;
-         }
-
          status = hdd_register_hostapd( pAdapter, rtnl_held );
          if( VOS_STATUS_SUCCESS != status )
          {
@@ -11698,12 +11689,6 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
          case WLAN_HDD_SOFTAP:
             if (pHddCtx->cfg_ini->sap_internal_restart) {
                 hdd_init_ap_mode(pAdapter, true);
-                status = hdd_sta_id_hash_attach(pAdapter);
-                if (VOS_STATUS_SUCCESS != status)
-                {
-                    hddLog(VOS_TRACE_LEVEL_FATAL,
-                         FL("failed to attach hash for"));
-                }
             }
             break;
 
@@ -14173,6 +14158,7 @@ int hdd_wlan_startup(struct device *dev )
 #endif /* WLAN_KD_READY_NOTIFIER */
 
    vos_set_roam_delay_stats_enabled(pHddCtx->cfg_ini->gEnableRoamDelayStats);
+   hdd_init_sw_pta(pHddCtx);
    status = vos_open( &pVosContext, pHddCtx->parent_dev);
    if ( !VOS_IS_STATUS_SUCCESS( status ))
    {
@@ -14804,7 +14790,7 @@ int hdd_wlan_startup(struct device *dev )
 
    mutex_init(&pHddCtx->cache_channel_lock);
 
-   hdd_init_sw_pta(pHddCtx);
+   wcnss_update_bt_profile();
    goto success;
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
