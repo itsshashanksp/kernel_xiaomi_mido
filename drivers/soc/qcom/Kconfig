@@ -963,6 +963,9 @@ config MSM_BAM_DMUX
 		This handle the interrupts raised by BG and notify the G-link with
 		interrupt event and event data.
 
+config STATE_NOTIFIER
+    bool "State Notifier"
+
 source "drivers/soc/qcom/wcnss/Kconfig"
 
 config BIG_CLUSTER_MIN_FREQ_ADJUST
