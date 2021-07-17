@@ -1317,6 +1317,9 @@ static int venus_hfi_suspend(void *dev)
 	} else if (!device->res->sw_power_collapsible) {
 		return -ENOTSUPP;
 	}
+	
+    dprintk(VIDC_DBG, "Suspending Venus\n");
+	flush_delayed_work(&venus_hfi_pm_work);
 
 	dprintk(VIDC_DBG, "Suspending Venus\n");
 	flush_delayed_work(&venus_hfi_pm_work);

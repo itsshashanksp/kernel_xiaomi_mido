@@ -40,10 +40,14 @@ config IOSCHED_ANXIETY
 	tristate "Anxiety I/O scheduler"
 	default y
 	---help---
-	  The Anxiety I/O scheduler prioritizes latency over everything
-	  else. It uses a simple algorithm that selects from FIFO queues
-	  implemented as doubly linked lists and prioritizes reads over
-	  writes.
+	  Anxiety is a low-latency I/O scheduler designed for use in
+	  embedded devices with flash storage. It attempts to provide
+	  unfair request bias, batching synchronous requests together
+	  at the expense of delaying asyncrhonous requests. By
+	  definition, synchronous requests are essentially "holding up"
+	  the current processes until they are dispatched. By biasing
+	  and batching synchronous requests, process initialization is
+	  expedited.
 
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
@@ -83,7 +87,7 @@ config IOSCHED_ZEN
 
 choice
 	prompt "Default I/O scheduler"
-	default DEFAULT_MAPLE
+	default DEFAULT_ANXIETY
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
