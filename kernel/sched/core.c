@@ -7244,7 +7244,7 @@ sd_init(struct sched_domain_topology_level *tl,
 	*sd = (struct sched_domain){
 		.min_interval		= sd_weight,
 		.max_interval		= 2*sd_weight,
-		.busy_factor		= 32,
+		.busy_factor		= 1,
 		.imbalance_pct		= 125,
 
 		.cache_nice_tries	= 0,
@@ -7841,10 +7841,10 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 	}
 
 	/*
-	* The max_cpu_capacity reflect the original capacity which does not
-	* change dynamically. So update the max cap CPU and its capacity
-	* here.
-	*/
+	 * The max_cpu_capacity reflect the original capacity which does not
+	 * change dynamically. So update the max cap CPU and its capacity
+	 * here.
+	 */
 	if (d.rd->max_cap_orig_cpu != -1) {
 		d.rd->max_cpu_capacity.cpu = d.rd->max_cap_orig_cpu;
 		d.rd->max_cpu_capacity.val = arch_scale_cpu_capacity(NULL,
