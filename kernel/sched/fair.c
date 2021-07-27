@@ -7613,6 +7613,7 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sibl
 
 	boosted = task_is_boosted(p);
 #ifdef CONFIG_CGROUP_SCHEDTUNE
+	boosted = per_task_boost(p) > 0;
 	prefer_idle = schedtune_prefer_idle(p) > 0;
 #else
 	prefer_idle = 0;
