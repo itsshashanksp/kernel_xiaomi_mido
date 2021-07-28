@@ -2234,9 +2234,7 @@ out:
 	if (success && sched_predl) {
 		raw_spin_lock_irqsave(&cpu_rq(cpu)->lock, flags);
 		if (do_pl_notif(cpu_rq(cpu)))
-			cpufreq_update_util(cpu_rq(cpu),
-					    SCHED_CPUFREQ_WALT |
-					    SCHED_CPUFREQ_PL);
+			cpufreq_update_util(cpu_rq(cpu), SCHED_CPUFREQ_PL);
 		raw_spin_unlock_irqrestore(&cpu_rq(cpu)->lock, flags);
 	}
 
@@ -2358,7 +2356,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	p->se.nr_migrations		= 0;
 	p->se.vruntime			= 0;
 	p->last_sleep_ts		= 0;
-	p->last_cpu_selected_ts		= 0;
+	p->last_cpu_deselected_ts	= 0;
 	p->boost                = 0;
 	p->boost_expires        = 0;
 	p->boost_period         = 0;
@@ -3278,7 +3276,6 @@ void scheduler_tick(void)
 	bool early_notif;
 	u32 old_load;
 	struct related_thread_group *grp;
-	unsigned int flag = 0;
 
 	sched_clock_tick();
 
@@ -3297,9 +3294,7 @@ void scheduler_tick(void)
 
 	early_notif = early_detection_notify(rq, wallclock);
 	if (early_notif)
-		flag = SCHED_CPUFREQ_WALT | SCHED_CPUFREQ_EARLY_DET;
-
-	cpufreq_update_util(rq, flag);
+		cpufreq_update_util(rq, SCHED_CPUFREQ_EARLY_DET);
 
 	psi_task_tick(rq);
 
@@ -3664,6 +3659,7 @@ static void __sched notrace __schedule(bool preempt)
 	rq->clock_skip_update = 0;
 
 	if (likely(prev != next)) {
+		prev->last_cpu_deselected_ts = wallclock;
 		if (!prev->on_rq)
 			prev->last_sleep_ts = wallclock;
 
@@ -5065,6 +5061,60 @@ out_put_task:
 
 char sched_lib_name[LIB_PATH_LENGTH];
 unsigned int sched_lib_mask_force;
+struct libname_node {
+	char *name;
+	struct list_head list;
+};
+static LIST_HEAD(__sched_lib_name_list);
+static DEFINE_SPINLOCK(__sched_lib_name_lock);
+
+/*
+ * A sysctl callback for handling 'sched_lib_name' operation. Except processing
+ * the data with the usual function 'proc_dostring()', additionally tokenize the
+ * input text with the dilimiter ',' and store in a linked list
+ * '__sched_lib_name_list'.
+ */
+int sysctl_sched_lib_name_handler(struct ctl_table *table, int write,
+				  void __user *buffer, size_t *lenp,
+				  loff_t *ppos)
+{
+	int ret;
+	char *curr, *next;
+	char dup_sched_lib_name[LIB_PATH_LENGTH];
+	struct libname_node *pos, *tmp;
+
+	ret = proc_dostring(table, write, buffer, lenp, ppos);
+	if (write && !ret) {
+		spin_lock(&__sched_lib_name_lock);
+		/* Free the old list. */
+		if (!list_empty(&__sched_lib_name_list)) {
+			list_for_each_entry_safe (
+				pos, tmp, &__sched_lib_name_list, list) {
+				list_del(&pos->list);
+				kfree(pos->name);
+				kfree(pos);
+			}
+		}
+
+		if (strnlen(sched_lib_name, LIB_PATH_LENGTH) == 0) {
+			spin_unlock(&__sched_lib_name_lock);
+			return 0;
+		}
+
+		/* Split sched_lib_name by ',' and store in a linked list. */
+		strlcpy(dup_sched_lib_name, sched_lib_name, LIB_PATH_LENGTH);
+		next = dup_sched_lib_name;
+		while ((curr = strsep(&next, ",")) != NULL) {
+			pos = kmalloc(sizeof(struct libname_node), GFP_KERNEL);
+			pos->name = kstrdup(curr, GFP_KERNEL);
+			list_add_tail(&pos->list, &__sched_lib_name_list);
+		}
+		spin_unlock(&__sched_lib_name_lock);
+	}
+
+	return ret;
+}
+
 bool is_sched_lib_based_app(pid_t pid)
 {
 	const char *name = NULL;
@@ -5072,6 +5122,8 @@ bool is_sched_lib_based_app(pid_t pid)
 	char path_buf[LIB_PATH_LENGTH];
 	bool found = false;
 	struct task_struct *p;
+	struct mm_struct *mm;
+	struct libname_node *pos;
 
 	if (strnlen(sched_lib_name, LIB_PATH_LENGTH) == 0)
 		return false;
@@ -5088,27 +5140,47 @@ bool is_sched_lib_based_app(pid_t pid)
 	get_task_struct(p);
 	rcu_read_unlock();
 
-	if (!p->mm)
+	spin_lock(&__sched_lib_name_lock);
+	/* Check if the task name equals any of the sched_lib_name list. */
+	list_for_each_entry (pos, &__sched_lib_name_list, list) {
+		if (!strncmp(p->comm, pos->name, LIB_PATH_LENGTH)) {
+			found = true;
+			spin_unlock(&__sched_lib_name_lock);
+			goto put_task_struct;
+		}
+	}
+	spin_unlock(&__sched_lib_name_lock);
+
+	mm = get_task_mm(p);
+	if (!mm)
 		goto put_task_struct;
 
-	down_read(&p->mm->mmap_sem);
-	for (vma = p->mm->mmap; vma ; vma = vma->vm_next) {
+	down_read(&mm->mmap_sem);
+	for (vma = mm->mmap; vma ; vma = vma->vm_next) {
 		if (vma->vm_file && vma->vm_flags & VM_EXEC) {
 			name = d_path(&vma->vm_file->f_path,
 					path_buf, LIB_PATH_LENGTH);
 			if (IS_ERR(name))
 				goto release_sem;
 
-			if (strnstr(name, sched_lib_name,
-					strnlen(name, LIB_PATH_LENGTH))) {
-				found = true;
-				break;
+			/* Check if the file name includes any of the
+			 * sched_lib_name list. */
+			spin_lock(&__sched_lib_name_lock);
+			list_for_each_entry (pos, &__sched_lib_name_list,
+					     list) {
+				if (strnstr(name, pos->name,
+					    strnlen(name, LIB_PATH_LENGTH))) {
+					found = true;
+					break;
+				}
 			}
+			spin_unlock(&__sched_lib_name_lock);
 		}
 	}
 
 release_sem:
-	up_read(&p->mm->mmap_sem);
+	up_read(&mm->mmap_sem);
+	mmput(mm);
 put_task_struct:
 	put_task_struct(p);
 	return found;

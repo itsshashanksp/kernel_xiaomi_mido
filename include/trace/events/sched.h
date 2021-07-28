@@ -735,10 +735,10 @@ TRACE_EVENT(sched_energy_diff,
 TRACE_EVENT(sched_task_util,
 
 	TP_PROTO(struct task_struct *p, int next_cpu, int backup_cpu,
-		 int target_cpu, bool sync, bool need_idle, int fastpath,
+		 int target_cpu, bool need_idle, int fastpath,
 		 bool placement_boost, int rtg_cpu, u64 start_t),
 
-	TP_ARGS(p, next_cpu, backup_cpu, target_cpu, sync, need_idle, fastpath,
+	TP_ARGS(p, next_cpu, backup_cpu, target_cpu, need_idle, fastpath,
 		placement_boost, rtg_cpu, start_t),
 
 	TP_STRUCT__entry(
@@ -749,7 +749,6 @@ TRACE_EVENT(sched_task_util,
 		__field(int, next_cpu			)
 		__field(int, backup_cpu			)
 		__field(int, target_cpu			)
-		__field(bool, sync			)
 		__field(bool, need_idle			)
 		__field(int, fastpath			)
 		__field(bool, placement_boost		)
@@ -765,7 +764,6 @@ TRACE_EVENT(sched_task_util,
 		__entry->next_cpu		= next_cpu;
 		__entry->backup_cpu		= backup_cpu;
 		__entry->target_cpu		= target_cpu;
-		__entry->sync			= sync;
 		__entry->need_idle		= need_idle;
 		__entry->fastpath		= fastpath;
 		__entry->placement_boost	= placement_boost;
@@ -773,8 +771,8 @@ TRACE_EVENT(sched_task_util,
 		__entry->latency		= (sched_clock() - start_t);
 	),
 
-	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d next_cpu=%d backup_cpu=%d target_cpu=%d sync=%d need_idle=%d fastpath=%d placement_boost=%d rtg_cpu=%d latency=%llu",
-		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu, __entry->next_cpu, __entry->backup_cpu, __entry->target_cpu, __entry->sync, __entry->need_idle,  __entry->fastpath, __entry->placement_boost, __entry->rtg_cpu, __entry->latency)
+	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d next_cpu=%d backup_cpu=%d target_cpu=%d need_idle=%d fastpath=%d placement_boost=%d rtg_cpu=%d latency=%llu",
+		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu, __entry->next_cpu, __entry->backup_cpu, __entry->target_cpu, __entry->need_idle,  __entry->fastpath, __entry->placement_boost, __entry->rtg_cpu, __entry->latency)
 );
 
 #endif
@@ -1734,6 +1732,28 @@ TRACE_EVENT(sched_group_energy,
 		  __entry->grp_idle_idx, __entry->new_capacity)
 );
 
+TRACE_EVENT(sched_capacity_update,
+
+	TP_PROTO(int cpu),
+
+	TP_ARGS(cpu),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, cpu			)
+		__field(unsigned int, capacity			)
+		__field(unsigned int, capacity_orig		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->capacity		= capacity_of(cpu);
+		__entry->capacity_orig		= capacity_orig_of(cpu);
+	),
+
+	TP_printk("cpu=%d capacity=%u capacity_orig=%u",
+		__entry->cpu, __entry->capacity, __entry->capacity_orig)
+);
+
 /*
  * Tracepoint for schedtune_tasks_update
  */
@@ -1887,17 +1907,20 @@ TRACE_EVENT(core_ctl_set_busy,
 
 TRACE_EVENT(core_ctl_set_boost,
 
-	TP_PROTO(u32 refcount, s32 ret),
-	TP_ARGS(refcount, ret),
+	TP_PROTO(u32 refcount, u32 index, s32 ret),
+	TP_ARGS(refcount, index, ret),
 	TP_STRUCT__entry(
 		__field(u32, refcount)
+		__field(u32, index)
 		__field(s32, ret)
 	),
 	TP_fast_assign(
 		__entry->refcount = refcount;
+		__entry->index = index;
 		__entry->ret = ret;
 	),
-	TP_printk("refcount=%u, ret=%d", __entry->refcount, __entry->ret)
+	TP_printk("refcount=%u, idx=%u, ret=%d", __entry->refcount,
+		  __entry->index, __entry->ret)
 );
 
 /*
