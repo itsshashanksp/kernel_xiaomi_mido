@@ -34,6 +34,7 @@
 #ifdef CONFIG_SMP
 #include <linux/sched.h>
 #endif
+#include <linux/sched/sysctl.h>
 #include <trace/events/power.h>
 
 static LIST_HEAD(cpufreq_policy_list);
