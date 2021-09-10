@@ -18,12 +18,13 @@ struct zcomp_strm {
 
 /* dynamic per-device compression frontend */
 struct zcomp {
-	struct zcomp_strm __percpu *stream;
-	struct notifier_block notifier;
-
+	struct zcomp_strm * __percpu *stream;
 	const char *name;
+	struct hlist_node node;
 };
 
+int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node);
+int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node);
 ssize_t zcomp_available_show(const char *comp, char *buf);
 bool zcomp_available_algorithm(const char *comp);
 
