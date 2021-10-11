@@ -141,6 +141,19 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 	if (!page)
 		return 0;
 
+<<<<<<< HEAD
+=======
+	if (!cached)
+		pool = heap->uncached_pools[order_to_index(order)];
+	else
+		pool = heap->cached_pools[order_to_index(order)];
+
+	page = ion_page_pool_alloc(pool);
+
+	if (page && cached)
+		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << order,
+					  DMA_BIDIRECTIONAL);
+>>>>>>> glg/android-4.9-q
 	return page;
 }
 
